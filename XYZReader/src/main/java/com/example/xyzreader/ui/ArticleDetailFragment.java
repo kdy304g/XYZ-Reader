@@ -12,12 +12,15 @@ import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.text.Html;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
 import android.text.format.DateUtils;
 import android.text.method.LinkMovementMethod;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -26,6 +29,7 @@ import androidx.palette.graphics.Palette;
 
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.ImageLoader;
+import com.example.xyzreader.MySpannable;
 import com.example.xyzreader.R;
 import com.example.xyzreader.data.ArticleLoader;
 
@@ -49,7 +53,7 @@ public class ArticleDetailFragment extends Fragment implements
     private Cursor mCursor;
     private long mItemId;
     private View mRootView;
-    private int mMutedColor = 0xFF333333;
+    private int mMutedColor = R.color.muted_color;
     private ObservableScrollView mScrollView;
     private DrawInsetsFrameLayout mDrawInsetsFrameLayout;
     private ColorDrawable mStatusBarColorDrawable;
@@ -233,6 +237,8 @@ public class ArticleDetailFragment extends Fragment implements
 
             }
             bodyView.setText(Html.fromHtml(mCursor.getString(ArticleLoader.Query.BODY).replaceAll("(\r\n|\n)", "<br />")));
+            makeTextViewResizable(bodyView, 10, "See More", true);
+
             ImageLoaderHelper.getInstance(getActivity()).getImageLoader()
                     .get(mCursor.getString(ArticleLoader.Query.PHOTO_URL), new ImageLoader.ImageListener() {
                         @Override
@@ -301,4 +307,79 @@ public class ArticleDetailFragment extends Fragment implements
                 ? (int) mPhotoContainerView.getTranslationY() + mPhotoView.getHeight() - mScrollY
                 : mPhotoView.getHeight() - mScrollY;
     }
+
+    public static void makeTextViewResizable(final TextView tv, final int maxLine, final String expandText, final boolean viewMore) {
+
+        if (tv.getTag() == null) {
+            tv.setTag(tv.getText());
+        }
+        ViewTreeObserver vto = tv.getViewTreeObserver();
+        vto.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+
+            @SuppressWarnings("deprecation")
+            @Override
+            public void onGlobalLayout() {
+
+                ViewTreeObserver obs = tv.getViewTreeObserver();
+                obs.removeGlobalOnLayoutListener(this);
+                if (maxLine == 0) {
+                    int lineEndIndex = tv.getLayout().getLineEnd(0);
+                    String text = tv.getText().subSequence(0, lineEndIndex - expandText.length() + 1) + " " + expandText;
+                    tv.setText(text);
+                    tv.setMovementMethod(LinkMovementMethod.getInstance());
+                    tv.setText(
+                            addClickablePartTextViewResizable(Html.fromHtml(tv.getText().toString()), tv, maxLine, expandText,
+                                    viewMore), TextView.BufferType.SPANNABLE);
+                } else if (maxLine > 0 && tv.getLineCount() >= maxLine) {
+                    int lineEndIndex = tv.getLayout().getLineEnd(maxLine - 1);
+                    String text = tv.getText().subSequence(0, lineEndIndex - expandText.length() + 1) + " " + expandText;
+                    tv.setText(text);
+                    tv.setMovementMethod(LinkMovementMethod.getInstance());
+                    tv.setText(
+                            addClickablePartTextViewResizable(Html.fromHtml(tv.getText().toString()), tv, maxLine, expandText,
+                                    viewMore), TextView.BufferType.SPANNABLE);
+                } else {
+                    int lineEndIndex = tv.getLayout().getLineEnd(tv.getLayout().getLineCount() - 1);
+                    String text = tv.getText().subSequence(0, lineEndIndex) + " " + expandText;
+                    tv.setText(text);
+                    tv.setMovementMethod(LinkMovementMethod.getInstance());
+                    tv.setText(
+                            addClickablePartTextViewResizable(Html.fromHtml(tv.getText().toString()), tv, lineEndIndex, expandText,
+                                    viewMore), TextView.BufferType.SPANNABLE);
+                }
+            }
+        });
+
+    }
+
+    private static SpannableStringBuilder addClickablePartTextViewResizable(final Spanned strSpanned, final TextView tv,
+                                                                            final int maxLine, final String spanableText, final boolean viewMore) {
+        String str = strSpanned.toString();
+        SpannableStringBuilder ssb = new SpannableStringBuilder(strSpanned);
+
+        if (str.contains(spanableText)) {
+
+
+            ssb.setSpan(new MySpannable(false){
+                @Override
+                public void onClick(View widget) {
+                    if (viewMore) {
+                        tv.setLayoutParams(tv.getLayoutParams());
+                        tv.setText(tv.getTag().toString(), TextView.BufferType.SPANNABLE);
+                        tv.invalidate();
+                        makeTextViewResizable(tv, -1, "See Less", false);
+                    } else {
+                        tv.setLayoutParams(tv.getLayoutParams());
+                        tv.setText(tv.getTag().toString(), TextView.BufferType.SPANNABLE);
+                        tv.invalidate();
+                        makeTextViewResizable(tv, 3, ".. See More", true);
+                    }
+                }
+            }, str.indexOf(spanableText), str.indexOf(spanableText) + spanableText.length(), 0);
+
+        }
+        return ssb;
+
+    }
 }
+
