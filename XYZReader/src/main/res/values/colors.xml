@@ -28,4 +28,8 @@
     <color name="color_primary">#6200EE</color>
     <color name="color_primary_variant">#3700B3</color>
     <color name="color_secondary">#03DAC6</color>
+    <color name="title_color">#fff</color>
+    <color name="sub_title_color">#8fff</color>
+    <color name="meta_bar_color">#333</color>
+    <color name="detail_background_color">#fff</color>
 </resources>
